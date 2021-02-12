@@ -20,15 +20,14 @@ import com.google.firebase.dynamiclinks.PendingDynamicLinkData;
 import com.google.firebase.dynamiclinks.ShortDynamicLink;
 
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import by.chemerisuk.cordova.support.CordovaMethod;
-import by.chemerisuk.cordova.support.ReflectiveCordovaPlugin;
 
-
-public class FirebaseDynamicLinksPlugin extends ReflectiveCordovaPlugin {
+public class FirebaseDynamicLinksPlugin extends CordovaPlugin {
     private static final String TAG = "FirebaseDynamicLinks";
 
     private FirebaseDynamicLinks firebaseDynamicLinks;
@@ -50,33 +49,54 @@ public class FirebaseDynamicLinksPlugin extends ReflectiveCordovaPlugin {
         }
     }
 
-    @CordovaMethod
+    /**
+     * @param action
+     * @param args
+     * @param callbackContext
+     * @return
+     * @throws JSONException
+     */
+    @Override
+    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+        switch (action) {
+            case "getDynamicLink":
+                this.getDynamicLink(callbackContext);
+                return true;
+            case "onDynamicLink":
+                this.onDynamicLink(callbackContext);
+                return true;
+            case "createDynamicLink":
+                this.createDynamicLink(args.getJSONObject(0), args.getInt(1), callbackContext);
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private void getDynamicLink(CallbackContext callbackContext) {
         respondWithDynamicLink(cordova.getActivity().getIntent(), callbackContext);
     }
 
-    @CordovaMethod
     private void onDynamicLink(CallbackContext callbackContext) {
         dynamicLinkCallback = callbackContext;
     }
 
-    @CordovaMethod(ExecutionThread.WORKER)
     private void createDynamicLink(JSONObject params, int linkType, final CallbackContext callbackContext) throws JSONException {
         DynamicLink.Builder builder = createDynamicLinkBuilder(params);
         if (linkType == 0) {
             callbackContext.success(builder.buildDynamicLink().getUri().toString());
         } else {
             builder.buildShortDynamicLink(linkType)
-                .addOnCompleteListener(this.cordova.getActivity(), new OnCompleteListener<ShortDynamicLink>() {
-                    @Override
-                    public void onComplete(Task<ShortDynamicLink> task) {
-                        if (task.isSuccessful()) {
-                            callbackContext.success(task.getResult().getShortLink().toString());
-                        } else {
-                            callbackContext.error(task.getException().getMessage());
+                    .addOnCompleteListener(this.cordova.getActivity(), new OnCompleteListener<ShortDynamicLink>() {
+                        @Override
+                        public void onComplete(Task<ShortDynamicLink> task) {
+                            if (task.isSuccessful()) {
+                                callbackContext.success(task.getResult().getShortLink().toString());
+                            } else {
+                                callbackContext.error(task.getException().getMessage());
+                            }
                         }
-                    }
-                });
+                    });
         }
     }
 
